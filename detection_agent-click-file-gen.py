@@ -1,11 +1,11 @@
 #!/usr/bin/python
 
-# This script creates a .click file which can then be run using the click modular router.
+# This Python script creates a .click file which can then be run using the click modular router.
 # http://read.cs.ucla.edu/click/click
 # https://github.com/kohler/click
 #
 # it requires that you have installed the DetectionAgent module within your click installation
-# https://github.com/Wi5/odin-wi5-agent/tree/master/src
+# https://github.com/Wi5/odin-wi5-flow-detection, (DetectionAgent.{cc,hh} files)
 #
 
 import sys
@@ -15,8 +15,8 @@ if (len(sys.argv) != 6):
     print ''
     print '%s <ODIN_MASTER_IP> <ODIN_MASTER_PORT> <DETECTION_AGENT_IP> <DEBUG_CLICK> <DEBUG_DETECTION>' %(sys.argv[0])
     print ''
-    print 'ODIN_MASTER_IP is the IP of the openflow controller where Odin master is running'
-    print 'ODIN_MASTER_PORT should be 2819 by default'
+    print 'ODIN_MASTER_IP is the IP of the OpenFlow controller where Odin master is running'
+    print 'ODIN_MASTER_PORT is the port where the OpenFlow controller is listening (2819 by default)'
     print 'DETECTION_AGENT_IP is the IP address of the AP where this script is running (the IP used for communicating with the controller)'
     print 'DEBUG_CLICK: "0" no info displayed; "1" only basic info displayed; "2" all the info displayed'
     print 'DEBUG_DETECTION: "00" no info displayed; "01" only basic info displayed; "02" all the info displayed; "11" or "12": demo mode (more separators)'
@@ -36,12 +36,12 @@ DEBUG_CLICK = int(sys.argv[4])
 DEBUG_DETECTION = int(sys.argv[5])
 
 # Set the value of some constants
-TAP_INTERFACE_NAME = "ap"			# name of the TAP device that Click will create in the 
+TAP_INTERFACE_NAME = "tap0"	# name of the TAP device that Click will create in the machine
 
 print '''
 // This is the scheme:
 //
-//            TAP interface 'ap' in the machine that runs Click
+//            TAP interface 'tap0' in the machine that runs Click
 //             | 
 // from host   | 
 //             v 
@@ -62,7 +62,7 @@ TimedSource(2, "ping\n")->  odinsocket::Socket(UDP, %s, %s, CLIENT true)
 
 
 
-# FIXME: I do not know if ODIN controller need these sockets (ControlSocket and ChatterSocket)
+# FIXME: I do not know if ODIN controller needs these sockets (ControlSocket and ChatterSocket)
 # to work without problem
 
 # Create ControlSocket and ChatterSocket, which are Click's remote control elements.
@@ -87,7 +87,7 @@ TimedSource(2, "ping\n")->  odinsocket::Socket(UDP, %s, %s, CLIENT true)
 print '''
 // output 0 of odinagent goes to odinsocket
 detectionagent[0] -> odinsocket
-// rates :: AvailableRates(DEFAULT 24 36 48 108);	// wifi rates in multiples of 500kbps
+// rates :: AvailableRates(DEFAULT 24 36 48 108);	// wifi rates in multiples of 500kbps. Not needed
 control :: ControlSocket("TCP", 6777);
 chatter :: ChatterSocket("TCP", 6778);
 '''
@@ -95,7 +95,7 @@ chatter :: ChatterSocket("TCP", 6778);
 
 print '''
 //'ap' is a Linux tap device which is instantiated by Click in the machine.
-//FromHost reads packets from 'ap'
+//FromHost reads packets from 'tap0'
 FromHost(%s, HEADROOM 50)
 	-> [0]detectionagent
 ''' % (TAP_INTERFACE_NAME)
