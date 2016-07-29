@@ -45,11 +45,11 @@ DetectionAgent::~DetectionAgent()
 int
 DetectionAgent::initialize(ErrorHandler*)
 {
-    _general_timer.initialize(this);
-	_general_timer.schedule_now();
-    _flows_timer.initialize(this);
-	_flows_timer.schedule_now();
-	return 0;
+  _general_timer.initialize(this);
+  _general_timer.schedule_now();
+  _flows_timer.initialize(this);
+  _flows_timer.schedule_now();
+  return 0;
 }
 
 
@@ -62,9 +62,9 @@ DetectionAgent::configure(Vector<String> &conf, ErrorHandler *errh)
 {
   // read the arguments of the .cli file
   if (Args(conf, this, errh)
-  .read_m("DETECTION_AGENT_IP", _detection_agent_ip)
-  .read_m("DEBUG_DETECTION", _debug_level)
-  .complete() < 0)
+    .read_m("DETECTION_AGENT_IP", _detection_agent_ip)
+    .read_m("DEBUG_DETECTION", _debug_level)
+    .complete() < 0)
   return -1;
 
   return 0;
@@ -72,9 +72,9 @@ DetectionAgent::configure(Vector<String> &conf, ErrorHandler *errh)
 
 
 /**
- * This element has 1 input ports and 1 output ports.
+ * This Click element has 1 input ports and 1 output ports.
  *
-  * In-port-0: Any ethernet encapsulated frame. Expected
+ * In-port-0: Any ethernet encapsulated frame. Expected
  *            to be coming from a tap device
  *
  * Out-port-0: Used exclusively to talk to a Socket UDP to be used
@@ -85,61 +85,67 @@ DetectionAgent::push(int port, Packet *p)
 {
   if (port == 0) {
     // This means that the packet is coming from the higher layer
-	// Get values for FLOW
+    // Get values for FLOW
     
-	click_ether *eh = (click_ether *) p->data();
-	if (eh->ether_type != ETHERTYPE_IP){
-			p->kill();
-			return;
+    // TODO: Add a debug message "packet received" here?
+    
+    click_ether *eh = (click_ether *) p->data();
+    
+    // check if the packet is an IP one
+    if (eh->ether_type != ETHERTYPE_IP){
+	p->kill();
+	return;
+    }
+
+    // move to the beginning of the IP header
+    click_ip *iph = (click_ip *) (p->data() + 14);
+
+    IPAddress src_ip (iph->ip_src);
+    IPAddress dst_ip (iph->ip_dst);
+    uint8_t   protocol = iph->ip_p;
+    uint16_t  src_port;
+    uint16_t  dst_port;
+
+    // If the packet is TCP
+    if (protocol == IP_PROTO_TCP) {
+      click_tcp *tcph = (click_tcp *) (p->data() + 20);
+      src_port = tcph->th_sport;
+      dst_port = tcph->th_dport;
+    }
+
+    // If the packet is UDP
+    if (protocol == IP_PROTO_UDP) {
+      click_udp *udph = (click_udp *) (p->data() + 20);
+      src_port = udph->uh_sport;
+      dst_port = udph->uh_dport;
+    }
+
+    Flow flw;
+    int i = 0;
+    for (Vector<DetectionAgent::Flow>::const_iterator iter = _flows_list.begin();
+      iter != _flows_list.end(); iter++) {
+
+	flw = *iter;
+	++i;
+
+	if ((flw.src_ip == src_ip) && (flw.dst_ip == dst_ip) &&
+        (flw.src_port == src_port) && (flw.dst_port == dst_port) &&
+	(flw.protocol == protocol)) {
+          _flows_list.at(i-1).last_flow_heard = Timestamp::now(); // update the timestamp
+	  p->kill();
+	  return;
 	}
+      }
 	
-	click_ip *iph = (click_ip *) (p->data() + 14);
-
-	IPAddress src_ip (iph->ip_src);
-	IPAddress dst_ip (iph->ip_dst);
-	uint8_t   protocol = iph->ip_p;
-	uint16_t  src_port;
-	uint16_t  dst_port;
-
-	if (protocol == IP_PROTO_TCP) {
-		click_tcp *tcph = (click_tcp *) (p->data() + 20);
-		src_port = tcph->th_sport;
-		dst_port = tcph->th_dport;
-	}
-
-	if (protocol == IP_PROTO_UDP) {
-
-		click_udp *udph = (click_udp *) (p->data() + 20);
-		src_port = udph->uh_sport;
-		dst_port = udph->uh_dport;
-	}
-
-	Flow flw;
-	int i = 0;
-	for (Vector<DetectionAgent::Flow>::const_iterator iter = _flows_list.begin();
-           iter != _flows_list.end(); iter++) {
-     
-		flw = *iter;
-		++i;
-
-		if ((flw.src_ip == src_ip) && (flw.dst_ip == dst_ip) &&
-			(flw.src_port == src_port) && (flw.dst_port == dst_port) &&
-			(flw.protocol == protocol)) {
-	
-			_flows_list.at(i-1).last_flow_heard = Timestamp::now(); // update the timestamp
-			p->kill();
-			return;
-		}
-	}
-	// Add flow
-	flw.src_ip = src_ip;
-	flw.dst_ip = dst_ip;
-	flw.src_port = src_port;
-	flw.dst_port = dst_port;
-	flw.protocol = protocol;
-	flw.last_flow_heard = Timestamp::now();
-	flw.last_flow_sent = Timestamp::now();
-	_flows_list.push_back (flw);
+      // Add a flow
+      flw.src_ip = src_ip;
+      flw.dst_ip = dst_ip;
+      flw.src_port = src_port;
+      flw.dst_port = dst_port;
+      flw.protocol = protocol;
+      flw.last_flow_heard = Timestamp::now();
+      flw.last_flow_sent = Timestamp::now();
+      _flows_list.push_back (flw);
   }
 
   p->kill();
@@ -147,10 +153,7 @@ DetectionAgent::push(int port, Packet *p)
 }
 
 
-
-
-
-/* This function sent the identified flows to the controller. It is controlled by THRESHOLD_FLOWS_SENT timer */
+/* This function sends the identified flows to the controller. It is controlled by the THRESHOLD_FLOWS_SENT timer */
 void
 sent_flows (Timer *timer, void *data)
 {
