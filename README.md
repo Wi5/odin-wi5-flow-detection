@@ -16,18 +16,18 @@ The next figure shows the general scheme. The part covered in this repository is
              ^
              |in & out traffic
              v
-         +-------+    in & out     +----------+
-         |router | ---duplicated-->| detector |
-         +-------+    traffic      +----------+
-             ^        of interest      ^
-             |                         |real-time flows' info
-             |in & out traffic         v
-      data   |                     +---------------+
-      plane  |                     |odin controller|
-             |                     +---------------+
-             |                      ^
-             |                      | control plane
-             v                      v
+        +--------+      in & out       +----------+
+        | router | -----duplicated---->| detector |
+        +--------+      traffic        +----------+
+             ^          of interest         |
+             |                              | real-time flows' info
+             |in & out traffic              v
+      data   |                       +---------------+
+      plane  |                       |odin controller|
+             |                       +---------------+
+             |                         ^
+             |                         | control plane
+             v                         v
 
  |    |      |    |             |    |
 +------+    +------+           +------+    
@@ -45,36 +45,62 @@ Scheme of the detector
 ======================
 Every packet that enters to the tap interface will be analyzed and, if necessary, information about the flow will be sent to the Odin controller.
 
-So you first have to duplicate and classify your traffic with another tool. You can do this with e.g. iptables, duplicating the traffic and sending it to the tap interface created by Click, called `ap`.
-
-To duplicate traffic in the router, you can use the option `iptables -tee` see e.g. http://superuser.com/questions/853077/iptables-duplicate-traffic-to-another-ip)
+So you first have to duplicate and classify your traffic with another tool. You can do this with e.g. iptables, duplicating the traffic and sending it to the tap interface created by Click (or by you).
 
 ```
-  in & out       +-----+   +-----------------+             +----------+
---duplicated---->| tap |-->|click with       |-odinsocket->| odin     |
-  traffic        +-----+   |odin detection   |    UDP      |controller|
-  of interest              +-----------------+             +----------+
-            
-               | 
-               | we are covering this part
-               |------------->
+                 +-------------------------------+
+  in & out       | +-----+   +-----------------+ |               +----------+
+--duplicated---->| | tap |-->|click with       | |--odinsocket-->| odin     |
+  traffic        | +-----+   |odin detection   | |      UDP      |controller|
+  of interest    |           +-----------------+ |   port 2819   +----------+
+                 |      detector                 |
+                 +-------------------------------+
+                 
+               |                                   |
+               |     we are covering this part     |
+               |<--------------------------------->|
 ```
 
-Steps to compile and run this
-=============================
+Compile the detector
+====================
 
 - Download Click modular router (`git clone https://github.com/kohler/click.git`)
 - Copy the two files `detection_agent.cc` and `detection_agent.hh` to `click/elements/local`
 - Compile Click with these options
-    `$ ./configure --prefix=/home/proyecto --enable-local --enable-userlevel`
+    `~$ ./configure --prefix=/home/proyecto --enable-local --enable-userlevel`
 
 - Build the element list
-    `$ make elemlist`
+    `~$ make elemlist`
 
-- Run `$ make`
+- Run `~$ make`
 
 You will then have a Click in `click/userlevel/click` including the detection agent.
 
-You may have to be root to run Click, as it creates a tap device.
-- To add some functionality in the Controller to read the information
+Prepare the tap interface
+=========================
 
+To add a tap device, and to add an IP address, do this:
+
+    ~$ ip tuntap add dev tap0 mode tap user root
+    ~$ ifconfig tap0 up
+    ~$ ifconfig tap0 192.168.X.Y
+
+If you do not create a tap device, Click will create it when you run it. But in that case you may have to be `root` to run Click.
+
+Run the detector
+================
+
+Create the `.click` file with the Python script. One example:
+
+    ~$python detection_agent-click-file-gen.py 192.168.T.Z 2819 192.168.X.Y 2 12 > ../detection.click
+
+And run Click
+
+    ~$ ./click/userlevel/click detection.click
+
+Duplicate the traffic to be analyzed
+====================================
+
+You can use the `-j TEE` option of `iptables` to duplicate the traffic. This is an example that works in a kernel 3, but not in a kernel 2.6:
+
+    ~$ iptables -t mangle -A PREROUTING -s 192.168.200.3 -j TEE --gateway 192.168.0.4
