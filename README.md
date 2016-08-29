@@ -47,13 +47,14 @@ Every packet that enters to the tap interface will be analyzed and, if necessary
 So you first have to duplicate and classify your traffic with another tool. You can do this with e.g. iptables, duplicating the traffic and sending it to the tap interface created by Click (or by you).
 
 ```
-                 +-------------------------------+
-  in & out       | +-----+   +-----------------+ |               +----------+
---duplicated---->| | tap |-->|click with       | |--odinsocket-->| odin     |
-  traffic        | +-----+   |odin detection   | |      UDP      |controller|
-  of interest    |           +-----------------+ |   port 2819   +----------+
-                 |      detector                 |
-                 +-------------------------------+
+                  +-----------------------------+
+                  |                             |
+  in & out       +------+   +-----------------+ |               +----------+
+--duplicated---->| ethX |-->| click with      | |--odinsocket-->| odin     |
+  traffic        +------+   | odin detection  | |      UDP      |controller|
+  of interest     |         +-----------------+ |   port 2819   +----------+
+                  |          detector           |
+                  +-----------------------------+
                  
                |                                   |
                |     we are covering this part     |
