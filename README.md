@@ -77,15 +77,6 @@ So you first have to duplicate and classify your traffic with another tool. You 
 
 You will then have a Click in `click/userlevel/click` including the detection agent.
 
-##Prepare the tap interface
-
-To add a tap device in Linux, and to add an IP address, do this:
-
-    ~$ ip tuntap add dev tap0 mode tap user root
-    ~$ ifconfig tap0 up
-    ~$ ifconfig tap0 192.168.X.Y
-
-If you do not create a tap device, Click will create it when you run it. But in that case you may have to be `root` to run Click.
 
 ##Run the detector
 
@@ -97,7 +88,7 @@ And run Click
 
     ~$ ./click/userlevel/click detection.click
 
-##Duplicate the traffic to be analyzed
+##Duplicate the traffic to be analyzed and direct it to the ethX of the detection machine
 
 You can use the `-j TEE` option of `iptables` to duplicate the traffic. This is an example that works in a kernel 3, but not in a kernel 2.6:
 
