@@ -36,16 +36,22 @@ DEBUG_CLICK = int(sys.argv[4])
 DEBUG_DETECTION = int(sys.argv[5])
 
 # Set the value of some constants
-TAP_INTERFACE_NAME = "tap0"	# name of the TAP device that Click will create in the machine
+DETECTION_INTERFACE_NAME = "eth0"	# name of the device that Click will use for detection
 
 print '''
 // This is the scheme:
-//
-//            TAP interface 'tap0' in the machine that runs Click
-//             | 
-// from host   | 
-//             v 
-//           click
+//                  +-----------------------------+
+//                  |                             |
+//  in & out       +------+   +-----------------+ |               +----------+
+//--duplicated---->| ethX |-->| click with      | |--odinsocket-->| odin     |
+//  traffic        +------+   | odin detection  | |      UDP      |controller|
+//  of interest     |         +-----------------+ |   port 2819   +----------+
+//                  |          detector           |
+//                  +-----------------------------+
+//                
+//               |                                   |
+//               |     we are covering this part     |
+//               |<--------------------------------->|
 //
 '''
 
@@ -87,15 +93,12 @@ TimedSource(2, "ping\n")->  odinsocket::Socket(UDP, %s, %s, CLIENT true)
 print '''
 // output 0 of odinagent goes to odinsocket
 detectionagent[0] -> odinsocket
-// rates :: AvailableRates(DEFAULT 24 36 48 108);	// wifi rates in multiples of 500kbps. Not needed
 control :: ControlSocket("TCP", 6777);
 chatter :: ChatterSocket("TCP", 6778);
 '''
 
 
 print '''
-//'ap' is a Linux tap device which is instantiated by Click in the machine.
-//FromHost reads packets from 'tap0'
-FromHost(%s, HEADROOM 50)
+FromDevice(%s, HEADROOM 50)
 	-> [0]detectionagent
-''' % (TAP_INTERFACE_NAME)
+''' % (DETECTION_INTERFACE_NAME)
