@@ -77,7 +77,7 @@ DetectionAgent::configure(Vector<String> &conf, ErrorHandler *errh)
  * In-port-0: Any ethernet encapsulated frame. 
  *
  * Out-port-0: Used exclusively to talk to a Socket UDP to be used
- *             to communicate with the OdinMaster.
+ *             to communicate with the Odin Controller.
  */
 void
 DetectionAgent::push(int port, Packet *p)
@@ -201,7 +201,7 @@ DetectionAgent::sent_detected_flows ()
 
 		if (((age.sec() * 1000000 ) + age.usec() ) > THRESHOLD_FLOWS_SENT){
 
-            // Send flow message to the master
+            // Send flow message to the Odin controller
             StringAccum sa;
             sa << "Flow " << flw.src_ip.unparse() << " " << flw.dst_ip.unparse() << " " << flw.protocol << " " << flw.src_port << " " << flw.dst_port << "\n";
 
