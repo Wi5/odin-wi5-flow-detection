@@ -43,9 +43,9 @@ The next figure shows the general scheme. The part covered in this repository is
 
 ##Scheme of the detector
 
-Every packet that enters to the tap interface will be analyzed and, if necessary, information about the flow will be sent to the Odin controller.
+Every packet that enters to the detector interface will be analyzed and, if necessary, information about the flow will be sent to the Odin controller.
 
-So you first have to duplicate and classify your traffic with another tool. You can do this with e.g. iptables, duplicating the traffic and sending it to the tap interface created by Click (or by you).
+So you first have to duplicate and classify your traffic with another tool. You can do this with e.g. iptables, duplicating the traffic and sending it to the interface used by Click.
 
 ```
                   +-----------------------------+
