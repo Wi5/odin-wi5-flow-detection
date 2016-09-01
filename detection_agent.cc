@@ -74,8 +74,7 @@ DetectionAgent::configure(Vector<String> &conf, ErrorHandler *errh)
 /**
  * This element has 1 input ports and 1 output ports.
  *
-  * In-port-0: Any ethernet encapsulated frame. Expected
- *            to be coming from a tap device
+ * In-port-0: Any ethernet encapsulated frame. 
  *
  * Out-port-0: Used exclusively to talk to a Socket UDP to be used
  *             to communicate with the OdinMaster.
