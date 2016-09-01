@@ -15,23 +15,24 @@ The next figure shows the general scheme. The part covered in this repository is
              ^
              |in & out traffic
              v
-        +--------+      in & out       +----------+
-        | router | -----duplicated---->| detector |
-        +--------+      traffic        +----------+
-             ^          of interest         |
-             |                              | real-time flows' info
-             |in & out traffic              v
-      data   |                       +---------------+
-      plane  |                       |odin controller|
-             |                       +---------------+
-             |                         ^
-             |                         | control plane
-             v                         v
+        +----------+       in & out         +----------+
+        | router & | ----- duplicated ----> | odin     |
+        |classifier|       traffic          | detector |
+        +----------+       of interest      +----------+
+             ^                                |
+             |                                | real-time flows' info
+             |in & out traffic                v
+      data   |                        +---------------+
+      plane  |                        |odin controller|
+             |                        +---------------+
+             |                          ^
+             |                          | control plane
+             v                          v
 
- |    |      |    |             |    |
-+------+    +------+           +------+    
-|  AP  |    |  AP  |     ...   |  AP  |
-+------+    +------+           +------+
+ |    |      |    |                |    |
++------+    +------+              +------+    
+|  AP  |    |  AP  |     ...      |  AP  |
++------+    +------+              +------+
 
     |
  +---+
@@ -88,7 +89,7 @@ And run Click
 
     ~$ ./click/userlevel/click detection.click
 
-##Duplicate the traffic to be analyzed and direct it to the ethX of the detection machine
+##Duplicate the traffic to be analyzed and direct it to the network interface of the detection machine
 
 You can use the `-j TEE` option of `iptables` to duplicate the traffic. This is an example that works in a kernel 3, but not in a kernel 2.6:
 
