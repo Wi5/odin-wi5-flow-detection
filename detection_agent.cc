@@ -212,7 +212,7 @@ DetectionAgent::sent_detected_flows ()
 			_flows_list.at(i-1).last_flow_sent = now; // update the timestamp
 			
 			if (_debug_level % 10 > 0)
-				fprintf(stderr, "[DetectionAgent.cc]   flow  messaage sent: %s\n", payload.c_str()); 
+				fprintf(stderr, "[DetectionAgent.cc]   flow  message sent: %s\n", payload.c_str()); 
         }
 	}
 }
