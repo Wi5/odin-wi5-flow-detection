@@ -203,7 +203,7 @@ DetectionAgent::sent_detected_flows ()
 
             // Send flow message to the Odin controller
             StringAccum sa;
-            sa << "Flow " << flw.src_ip.unparse() << " " << flw.dst_ip.unparse() << " " << flw.protocol << " " << flw.src_port << " " << flw.dst_port << "\n";
+            sa << "flow " << flw.src_ip.unparse() << " " << flw.dst_ip.unparse() << " " << flw.protocol << " " << flw.src_port << " " << flw.dst_port << "\n";
 
             String payload = sa.take_string();
             WritablePacket *odin_flow_packet = Packet::make(Packet::default_headroom, payload.data(), payload.length(), 0);
