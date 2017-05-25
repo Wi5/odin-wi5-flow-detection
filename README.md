@@ -92,7 +92,7 @@ Create the `.click` file with the Python script. One example:
 
 And run Click
 
-    ~$ ./click/userlevel/click detection.click
+    ~$ ./click/userlevel/click detection.cli
 
 Duplicate the traffic to be analyzed and direct it to the network interface of the detection machine
 ----------------------------------------------------------------------------------------------------
