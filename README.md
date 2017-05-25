@@ -88,7 +88,7 @@ Run the detector
 
 Create the `.click` file with the Python script. One example:
 
-    ~$ python detection_agent-click-file-gen.py 192.168.T.Z 2819 192.168.X.Y 2 12 > ../detection.click
+    ~$ python detection_agent-click-file-gen.py 192.168.T.Z 2819 192.168.X.Y 2 12 > ../detection.cli
 
 And run Click
 
