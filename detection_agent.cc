@@ -23,19 +23,16 @@
 
 CLICK_DECLS
 
-void misc_thread(Timer *timer, void *);  //only for screen report
-void send_flows(Timer *timer, void *);   //for sending the info of the flows to the controller
+void detection_thread(Timer *timer, void *);  //only for screen report
 
-int RESCHEDULE_INTERVAL_GENERAL = 10;   //time interval [sec] for periodic report by screen. General_timer will be rescheduled (to print flows) PERIODIC REPORT
-int RESCHEDULE_INTERVAL_FLOWS = 10;     //time interval [msec] for sending periodic reports to the Odin controller. flows_timer will be rescheduled (e.g. RESCHEDULE_INTERVAL_FLOWS = 10 means 0.01 seconds)
-uint32_t THRESHOLD_FLOWS_SENT = 100000; //time interval [usec] after which a FLOW message can be sent again to the Odin controller (e.g. THRESHOLD_FLOW_SENT = 100000 means 0.1 seconds
-int THRESHOLD_REMOVE_FLOWS = 30;        //time interval [sec] after which the old flows will be removed
+int RESCHEDULE_INTERVAL_GENERAL_DETECTION = 10;         //time interval [sec] for periodic report by screen. General_timer will be rescheduled (to print flows, update flows) PERIODIC REPORT
+uint32_t THRESHOLD_FLOWS_SENT = 4000000;      //time interval [usec] after which a detectedFlow message can be sent again to the Odin controller (e.g. THRESHOLD_FLOW_SENT = 1000000 means 1 second
+int THRESHOLD_REMOVE_FLOWS = 15;              //time interval [sec] after which the old flows will be removed
 
 DetectionAgent::DetectionAgent()
 : _debug_level(0)
 {
-	_general_timer.assign (&misc_thread, (void *) this);
-	_flows_timer.assign (&sent_flows, (void *) this);
+	_general_timer.assign (&detection_thread, (void *) this);
 }
 
 DetectionAgent::~DetectionAgent()
@@ -47,8 +44,6 @@ DetectionAgent::initialize(ErrorHandler*)
 {
     _general_timer.initialize(this);
 	_general_timer.schedule_now();
-    _flows_timer.initialize(this);
-	_flows_timer.schedule_now();
 	return 0;
 }
 
@@ -132,6 +127,7 @@ DetectionAgent::push(int port, Packet *p)
 
 	Flow flw;
 	int i = 0;
+	Timestamp now = Timestamp::now();
 	for (Vector<DetectionAgent::Flow>::const_iterator iter = _flows_list.begin();
            iter != _flows_list.end(); iter++) {
      
@@ -142,7 +138,12 @@ DetectionAgent::push(int port, Packet *p)
 			(flw.src_port == src_port) && (flw.dst_port == dst_port) &&
 			(flw.protocol == protocol)) {
 			//fprintf(stderr,"[DetectionAgent.cc]Known flow : %i\n", i);
-			_flows_list.at(i-1).last_flow_heard = Timestamp::now(); // update the timestamp
+			_flows_list.at(i-1).last_flow_heard = now; // update the timestamp
+			Timestamp age = now - flw.last_flow_sent;
+			if (((age.sec() * 1000000 ) + age.usec() ) > THRESHOLD_FLOWS_SENT){
+						sent_detected_flows(flw);
+						_flows_list.at(i-1).last_flow_sent = now; // update the timestamp
+			}
 			p->kill();
 			return;
 		}
@@ -154,8 +155,9 @@ DetectionAgent::push(int port, Packet *p)
 	flw.src_port = src_port;
 	flw.dst_port = dst_port;
 	flw.protocol = protocol;
-	flw.last_flow_heard = Timestamp::now();
-	flw.last_flow_sent = Timestamp::now();
+	flw.last_flow_heard = now;
+	sent_detected_flows (flw);
+	flw.last_flow_sent = now;
 	_flows_list.push_back (flw);
   }
 
@@ -164,70 +166,36 @@ DetectionAgent::push(int port, Packet *p)
 }
 
 
-
-
-
 /* This function sends the identified flows to the controller. 
-It is controlled by the THRESHOLD_FLOWS_SENT, THRESHOLD_REMOVE_FLOWS and RESCHEDULE_INTERVAL_FLOWS timers
+It is controlled by the THRESHOLD_FLOWS_SENT timer
 
-It is run every RESCHEDULE_INTERVAL_FLOWS
-The information of a flow is sent IF the time since its last report is smaller than THRESHOLD_FLOWS_SENT
-Flows which have not been updated in the last THRESHOLD_REMOVE_FLOWS are removed
+The information of a flow is sent IF the time since its last sent is greater than THRESHOLD_FLOWS_SENT
 */
 void
-DetectionAgent::sent_detected_flows ()
+DetectionAgent::sent_detected_flows (Flow flw)
 {
 
-   	int i = 0;
+    // Send flow message to the Odin controller
+    StringAccum sa;
+	int protocol = 0;
 
-	for (Vector<DetectionAgent::Flow>::iterator iter = _flows_list.begin();
-           iter != _flows_list.end(); iter++) {
-        
-		DetectionAgent::Flow flw = *iter;
-		Timestamp now = Timestamp::now();
-        Timestamp age = now - flw.last_flow_heard;
-		++i;
+	if (flw.protocol == IP_PROTO_TCP) 
+		protocol = IP_PROTO_TCP;
+	else if (flw.protocol == IP_PROTO_UDP) 
+		protocol = IP_PROTO_UDP;
+   
+	sa << "detectedFlow " << flw.src_ip.unparse() << " " << flw.dst_ip.unparse() << " " << protocol << " " << flw.src_port << " " << flw.dst_port << "\n";
 
-		if (age.sec() > THRESHOLD_REMOVE_FLOWS){
-            _flows_list.erase(iter); 
-			//fprintf(stderr,"[DetectionAgent.cc]#Flows: %d\n", _flows_list.size());
-			if (_debug_level % 10 > 0)
-					fprintf(stderr,"\n[DetectionAgent.cc] Cleaning old flow\n");
-			if (_flows_list.size() == 0)
-				break;
-			else continue;
-        }
-		age = now - flw.last_flow_sent;
+	//sa << "detectedFlow " << flw.src_ip.unparse() << " " << flw.dst_ip.unparse() << " " << flw.protocol << " " << flw.src_port << " " << flw.dst_port << "\n";
 
-		if (((age.sec() * 1000000 ) + age.usec() ) > THRESHOLD_FLOWS_SENT){
-
-            // Send flow message to the Odin controller
-            StringAccum sa;
-            sa << "flow " << flw.src_ip.unparse() << " " << flw.dst_ip.unparse() << " " << flw.protocol << " " << flw.src_port << " " << flw.dst_port << "\n";
-
-            String payload = sa.take_string();
-            WritablePacket *odin_flow_packet = Packet::make(Packet::default_headroom, payload.data(), payload.length(), 0);
-            output(0).push(odin_flow_packet);
+    String payload = sa.take_string();
+    WritablePacket *odin_flow_packet = Packet::make(Packet::default_headroom, payload.data(), payload.length(), 0);
+    output(0).push(odin_flow_packet);
+		
+	//flw->last_flow_sent = now; // update the timestamp
 			
-			_flows_list.at(i-1).last_flow_sent = now; // update the timestamp
-			
-			if (_debug_level % 10 > 0)
-				fprintf(stderr, "[DetectionAgent.cc]   flow  message sent: %s\n", payload.c_str()); 
-        }
-	}
-}
-
-
-
-void
-sent_flows (Timer *timer, void *data)
-{
-	DetectionAgent *agent = (DetectionAgent *) data;
-
-    agent->sent_detected_flows();
-
-    timer->reschedule_after_msec(RESCHEDULE_INTERVAL_FLOWS);
-
+	if (_debug_level % 10 > 0)
+		fprintf(stderr, "[DetectionAgent.cc]   flow  message sent: %s\n", payload.c_str()); 
 }
 
 
@@ -235,6 +203,7 @@ sent_flows (Timer *timer, void *data)
 void
 DetectionAgent::print_flows_state()
 {
+	Flow flw;
 	if (_debug_level % 10 > 0) {    // debug is activated
 		if (_debug_level / 10 == 1)		// demo mode. I print more visual information, i.e. rows of "#'
 			fprintf(stderr, "##################################################################\n");
@@ -246,7 +215,7 @@ DetectionAgent::print_flows_state()
 			for (Vector<DetectionAgent::Flow>::const_iterator iter = _flows_list.begin();
 			   iter != _flows_list.end(); iter++) {
         
-				Flow flw = *iter;
+				flw = *iter;
 				++num_flow;
 				fprintf(stderr,"[DetectionAgent.cc]Flow: %i\n", num_flow);
 				fprintf(stderr,"[DetectionAgent.cc]     -> Source IP: %s\n", flw.src_ip.unparse().c_str()); 
@@ -263,19 +232,102 @@ DetectionAgent::print_flows_state()
 		if (_debug_level / 10 == 1)		// demo mode. I print more visual information
 				fprintf(stderr, "##################################################################\n\n");
 	}
+	
+	// Updates the flows list. It is controlled by the THRESHOLD_REMOVE_FLOWS. 
+
+	//int count = 0;
+	Timestamp now = Timestamp::now();
+	for (Vector<DetectionAgent::Flow>::iterator iter = _flows_list.begin();
+		   iter != _flows_list.end(); iter++) {
+        
+		flw = *iter;
+		
+		//fprintf(stderr,"[DetectionAgent.cc]#Flow: %d\n",++count);
+
+		
+		Timestamp age = now - flw.last_flow_heard;
+		//fprintf(stderr,"[DetectionAgent.cc]     -> now: %d.%06d sec\n", now.sec(), now.subsec());
+		//fprintf(stderr,"[DetectionAgent.cc]     -> age: %d.%06d sec\n", age.sec(), age.subsec());
+		//fprintf(stderr,"[DetectionAgent.cc]     -> last heard: %d.%06d sec\n", flw.last_flow_heard.sec(), flw.last_flow_heard.subsec());
+
+		if (age.sec() > THRESHOLD_REMOVE_FLOWS){
+			if (_debug_level % 10 > 0)
+				fprintf(stderr,"\n[DetectionAgent.cc] Cleaning old flow\n");
+			_flows_list.erase(iter); 
+			--iter;
+			//fprintf(stderr,"[DetectionAgent.cc]#Flows: %d\n", _flows_list.size());
+			if (_flows_list.size() == 0)
+				return;
+		}
+	}
 }
 
 
 /* Thread for general purpose (i.e. print debug info about them)*/
-void misc_thread(Timer *timer, void *data){
+void detection_thread(Timer *timer, void *data){
 
     DetectionAgent *agent = (DetectionAgent *) data;
 
     agent->print_flows_state();
 
-    timer->reschedule_after_sec(RESCHEDULE_INTERVAL_GENERAL);
+    timer->reschedule_after_sec(RESCHEDULE_INTERVAL_GENERAL_DETECTION);
 
 }
+
+
+/*
+ * For recovery from controller
+ *
+ *
+ * */
+
+String
+DetectionAgent::read_handler(Element *e, void *user_data)
+{
+  StringAccum sa;
+
+  //sa << "\n";
+  sa << "";
+  return sa.take_string();
+}
+
+
+int
+DetectionAgent::write_handler(const String &str, Element *e, void *user_data, ErrorHandler *errh)
+{
+  return 0;
+}
+
+
+void
+DetectionAgent::add_handlers()
+{
+  add_read_handler("table", read_handler, handler_view_mapping_table);
+  add_read_handler("channel", read_handler, handler_channel);
+  add_read_handler("interval", read_handler, handler_interval);
+  add_read_handler("rxstats", read_handler, handler_rxstat);
+  add_read_handler("txstats", read_handler, handler_txstat);
+  add_read_handler("subscriptions", read_handler, handler_subscriptions);
+  add_read_handler("debug", read_handler, handler_debug);
+  add_read_handler("report_mean", read_handler, handler_report_mean);
+  add_read_handler("scan_client", read_handler, handler_scan_client);
+
+  add_write_handler("add_vap", write_handler, handler_add_vap);
+  add_write_handler("set_vap", write_handler, handler_set_vap);
+  add_write_handler("remove_vap", write_handler, handler_remove_vap);
+  add_write_handler("channel", write_handler, handler_channel);
+  add_write_handler("interval", write_handler, handler_interval);
+  add_write_handler("subscriptions", write_handler, handler_subscriptions);
+  add_write_handler("debug", write_handler, handler_debug);
+  add_write_handler("send_probe_response", write_handler, handler_probe_response);
+  add_write_handler("testing_send_probe_request", write_handler, handler_probe_request);
+  add_write_handler("handler_update_signal_strength", write_handler, handler_update_signal_strength);
+  add_write_handler("signal_strength_offset", write_handler, handler_signal_strength_offset);
+  add_write_handler("channel_switch_announcement", write_handler, handler_channel_switch_announcement);
+  add_write_handler("scan_client", write_handler, handler_scan_client);
+}
+
+
 
 
 CLICK_ENDDECLS
