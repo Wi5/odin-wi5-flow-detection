@@ -97,6 +97,6 @@ And run Click
 Duplicate the traffic to be analyzed and direct it to the network interface of the detection machine
 ----------------------------------------------------------------------------------------------------
 
-You can use the `-j TEE` option of `iptables` to duplicate the traffic. This is an example that works in a kernel 3, but not in a kernel 2.6:
+You can use the `-j TEE` option of `iptables` to duplicate the traffic. This is an example that works in a kernel 3 (but not in a kernel 2.6). Traffic from `192.168.200.3` will be duplicated and sent to 192.168.0.4 (in addition to its normal destination).
 
     ~$ iptables -t mangle -A PREROUTING -s 192.168.200.3 -j TEE --gateway 192.168.0.4
