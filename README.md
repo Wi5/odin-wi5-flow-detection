@@ -73,12 +73,12 @@ Compile the detector
 - Copy the two files `detection_agent.cc` and `detection_agent.hh` to `click/elements/local`
 
 - Compile Click with these options
-    `~$ ./configure --prefix=/home/proyecto --enable-local --enable-userlevel`
+    `~click$ ./configure --prefix=/home/proyecto --enable-local --enable-userlevel`
 
 - Build the element list
-    `~$ make elemlist`
+    `~click$ make elemlist`
 
-- Run `~$ make`
+- Run `~click$ make`
 
 You will then have a Click in `click/userlevel/click` including the detection agent.
 
