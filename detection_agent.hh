@@ -36,10 +36,34 @@ public:
   const char *processing() const  { return PUSH; }
   int initialize(ErrorHandler *); // initialize element
   int configure(Vector<String> &, ErrorHandler *);
+  void add_handlers();
   void push(int, Packet *);
 
 
-  
+  // Recovery from controller
+  static String read_handler(Element *e, void *user_data);
+  static int write_handler(const String &str, Element *e, void *user_data, ErrorHandler *errh);
+  enum {
+    handler_view_mapping_table,
+    handler_num_slots,
+    handler_add_vap,
+    handler_set_vap,
+	handler_txstat,
+    handler_rxstat,
+    handler_remove_vap,
+    handler_channel,
+    handler_interval,
+    handler_subscriptions,
+    handler_debug,
+    handler_probe_response,
+    handler_probe_request,
+    handler_report_mean,
+    handler_update_signal_strength,
+    handler_signal_strength_offset,
+    handler_channel_switch_announcement,
+	handler_scan_client,
+  };
+
   // Classes and Methods to handle flows
   class Flow {
     public:
@@ -56,15 +80,15 @@ public:
 
   //debug
   void print_flows_state();
-  void sent_detected_flows ();
+  void sent_detected_flows (Flow flw);
 
   int _debug_level;		//"0" no info displayed; "1" only basic info displayed; "2" all the info displayed; "1x" demo info displayed
 
 private:
   IPAddress _detection_agent_ip;
   Timer _general_timer;
-  Timer _flows_timer;
 };
+
 
 
 CLICK_ENDDECLS

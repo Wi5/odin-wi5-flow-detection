@@ -1,0 +1,35 @@
+
+// This is the scheme:
+//                  +-----------------------------+
+//                  |                             |
+//  in & out       +------+   +-----------------+ |               +----------+
+//--duplicated---->| ethX |-->| click with      | |--odinsocket-->| odin     |
+//  traffic        +------+   | odin detection  | |      UDP      |controller|
+//  of interest     |         +-----------------+ |   port 2819   +----------+
+//                  |          detector           |
+//                  +-----------------------------+
+//                
+//               |                                   |
+//               |     we are covering this part     |
+//               |<--------------------------------->|
+//
+
+
+// call DetectionAgent::configure to create and configure an Detection agent:
+detectionagent::DetectionAgent(DETECTION_AGENT_IP 192.168.2.14,DEBUG_DETECTION 12)
+
+
+// send a ping to odinsocket every 2 seconds
+TimedSource(2, "ping
+")->  odinsocket::Socket(UDP, 192.168.1.129, 2819, CLIENT true)
+
+
+// output 0 of odinagent goes to odinsocket
+detectionagent[0] -> odinsocket
+control :: ControlSocket("TCP", 6777);
+chatter :: ChatterSocket("TCP", 6778);
+
+
+FromDevice(eth0, HEADROOM 50)
+	-> [0]detectionagent
+
