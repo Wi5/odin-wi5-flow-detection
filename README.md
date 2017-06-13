@@ -1,7 +1,7 @@
 odin-wi5-flow-detection
 =======================
 
-The objective of this tool is to integrate detection of flows within the Odin framework. The idea is to identify flows belonging to different services, and to report this to the Odin controller. This information will be taken into account when running the different radio resource management algorithms. For example, if a real-time flow has been detected, then the Controller should act in order to grant the delay constraints required by that service.
+The objective of this tool is to integrate detection of flows within the Odin wi5 framework. The idea is to identify flows belonging to different services, and to report this to the wi5 Controller. This information will be taken into account when running the different radio resource management algorithms. For example, if a real-time flow has been detected, then the Controller should act in order to grant the delay constraints required by that service.
 
 The detection tool is based on Click modular router. See https://github.com/kohler/click.git
 
@@ -113,6 +113,8 @@ Flow 192.168.101.2 192.168.101.3 . 52483 3000
 Flow 192.168.101.2 192.168.101.3 . 37699 3000
 Flow 192.168.101.2 192.168.101.3 . 36399 3000
 ```
+**Note**. In this case, the value of the `protocol` field cannot be observed, and it is shown as a dot. The cause is that it corresponds to UDP, number 17 decimal and 11 hexadecimal, which has no representation in ASCII.
+
 
 Real-time information is shown by the screen every time a new flow message is sent to the wi-5 controller:
 
